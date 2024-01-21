@@ -2,6 +2,7 @@ package com.example.mindflow.controller;
 import com.example.mindflow.model.Usuario;
 import com.example.mindflow.negocios.UsuarioLogadoNegocio;
 import com.example.mindflow.repositoy.UsuarioRepository;
+import com.example.mindflow.service.AuthService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,11 +25,12 @@ public class AuthController {
     private final UsuarioLogadoNegocio usuarioLogadoNegocio;
 
     private static final long EXPIRATION_TIME = 864_000_000;
-    private final String SECRET_KEY = "angelical";
 
 
 
     @Autowired
+
+    private AuthService tokenBlackList;
 
     public AuthController(
             UsuarioRepository usuarioRepository,
@@ -44,6 +46,22 @@ public class AuthController {
             return ResponseEntity.ok(Map.of("message", "Login bem-sucedido!", "token", token));
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Credenciais inválidas"));
+        }
+    }
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody Map<String, String> requestBody) {
+        try {
+            String token = requestBody.get("token");
+
+            if (token != null && !token.isBlank() && !tokenBlackList.isTokenBlacklisted(token)) {
+                tokenBlackList.addToBlacklist(token);
+                return ResponseEntity.ok(Map.of("message", "Logout bem-sucedido!"));
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Token já revogado"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Erro interno no servidor"));
         }
     }
 
